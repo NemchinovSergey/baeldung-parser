@@ -8,6 +8,7 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,23 +26,20 @@ public class DocumentParser {
     /**
      * https://jsoup.org/apidocs/org/jsoup/select/Selector.html
      */
-    public void parse(Document doc) {
-        System.out.println("Header:");
+    public List<String> parse(Document doc) {
+        List<String> list = new ArrayList<>();
+
         Element headerH1 = doc.select("header h1")
                               .first();
-        System.out.println(String.format("\"%s\"\n", headerH1.text()));
+        list.add(render.render(headerH1));
 
         Elements article = doc.select("section[itemprop=\"articleBody\"]");
-        assert article.size() == 1;
-
-        List<String> list = article.first()
-                                      .children()
-                                      .stream()
-                                      .peek(element -> log.info("HTML: {}", element.outerHtml()))
-                                      .map(render::render)
-                                      .peek(markdown -> log.info("Markdown: {}", markdown))
-                                      .collect(Collectors.toList());
-        //list.forEach(log::info);
+        list.addAll(article.first()
+                           .children()
+                           .stream()
+                           .map(render::render)
+                           .collect(Collectors.toList()));
+        return list;
     }
 
 }
