@@ -9,6 +9,13 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.event.EventListener;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
+
 @SpringBootApplication
 public class Application {
 
@@ -23,9 +30,18 @@ public class Application {
         BaeldungExtractor extractor = ctx.getBean(BaeldungExtractor.class);
         DocumentParser parser = ctx.getBean(DocumentParser.class);
 
-        Document document = extractor.loadDocument("https://www.baeldung.com/java-with-jsoup");
+        Document document = extractor.loadDocument("https://www.baeldung.com/jackson-annotations");
         if (document != null) {
-            parser.parse(document);
+            List<String> strings = parser.parse(document);
+
+            try (BufferedWriter writer = Files.newBufferedWriter(Paths.get("./jackson-annotations.md"),
+                                                                 StandardOpenOption.CREATE)) {
+                for (String s : strings) {
+                    writer.write(s);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
