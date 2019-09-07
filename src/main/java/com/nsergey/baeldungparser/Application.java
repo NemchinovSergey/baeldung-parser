@@ -1,5 +1,12 @@
 package com.nsergey.baeldungparser;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
+
 import com.nsergey.baeldungparser.extractor.BaeldungExtractor;
 import com.nsergey.baeldungparser.parser.DocumentParser;
 import org.jsoup.nodes.Document;
@@ -8,13 +15,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.event.EventListener;
-
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.util.List;
 
 @SpringBootApplication
 public class Application {
@@ -30,11 +30,11 @@ public class Application {
         BaeldungExtractor extractor = ctx.getBean(BaeldungExtractor.class);
         DocumentParser parser = ctx.getBean(DocumentParser.class);
 
-        Document document = extractor.loadDocument("https://www.baeldung.com/jackson-annotations");
+        Document document = extractor.loadDocument("https://www.baeldung.com/jackson-ignore-properties-on-serialization");
         if (document != null) {
             List<String> strings = parser.parse(document);
 
-            try (BufferedWriter writer = Files.newBufferedWriter(Paths.get("./jackson-annotations.md"),
+            try (BufferedWriter writer = Files.newBufferedWriter(Paths.get("./jackson-ignore-properties-on-serialization.md"),
                                                                  StandardOpenOption.CREATE)) {
                 for (String s : strings) {
                     writer.write(s);
