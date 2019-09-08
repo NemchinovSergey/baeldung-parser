@@ -2,7 +2,10 @@ package com.nsergey.quickdownloader;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.net.URL;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,7 +23,7 @@ import org.jsoup.select.Elements;
 
 public class Application {
 
-    private static List<String> DOWNLOADABLE = Arrays.asList("zip", "mp3", "avi", "pdf", "mov", "m4v", "mp4");
+    protected static List<String> DOWNLOADABLE = Arrays.asList("zip", "mp3", "avi", "pdf", "mov", "m4v", "mp4");
 
     private static DownloadFileHttpClient httpClient = new DownloadFileHttpClient();
 
@@ -37,12 +40,11 @@ public class Application {
         Document document = loadPageDocument(startingPage);
         if (document != null) {
             Elements body = getBody(document);
-            //saveElementsToFile(dir + "\\index.html", body);
+            saveElementsToFile(dir.resolve("index.html").toString(), body);
 
             Elements links = getLinks(body);
             int successNumber = 1;
-            for (int i = 0; i < links.size(); i++) {
-                Element e = links.get(i);
+            for (Element e : links) {
                 int count = processPage(e.text(), e.attr("href"), dir, successNumber);
                 if (count > 0) {
                     successNumber++;
@@ -51,16 +53,17 @@ public class Application {
         }
 	}
 
-    private static int processPage(String title, String url, Path dir, int number) {
-        System.out.println(String.format("Start Page: [%s] -> %s", title, url));
+    protected static int processPage(String title, String pageUrl, Path dir, int number) {
+        System.out.println(String.format("Start Page: [%s] -> %s", title, pageUrl));
         int count = 0;
         try {
             Path pageDir = dir.resolve(buildPageDirectoryName(title, number));
 
-            Document page = loadPageDocument(url);
+            Document page = loadPageDocument(pageUrl);
             Elements links = page.select("a");
             for (Element link : links) {
-                if (processLink(pageDir, link)) {
+                String href = link.attr("href");
+                if (processLink(pageDir, resolveLink(pageUrl, href))) {
                     count++;
                 }
             }
@@ -72,15 +75,29 @@ public class Application {
         return count;
     }
 
-    private static boolean processLink(Path pageDir, Element link) {
-        String fileUrl = link.attr("href");
-        System.out.println("Process link: " + link);
+    protected static URI resolveLink(String pageUrl, String link) {
         try {
-            String fileNameOnly = Paths.get(new URL(fileUrl).getFile()).getFileName().toString();
+            URI fileUri = new URI(link);
+            if (fileUri.isAbsolute()) {
+                return fileUri;
+            } else {
+                URI pageUri = new URI(pageUrl);
+                return pageUri.resolve(fileUri);
+            }
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    protected static boolean processLink(Path pageDir, URI fileUri) {
+        System.out.println("Process link: " + fileUri.toString());
+        try {
+            String fileNameOnly = extractFileNameOnly(fileUri);
             if (isUrlDownloadable(fileNameOnly)) {
                 createDirectory(pageDir);
                 Path saveToFileName = pageDir.resolve(fileNameOnly);
-                long bytes = httpClient.download(fileUrl, saveToFileName.toString());
+                long bytes = httpClient.download(fileUri.toString(), saveToFileName.toString());
                 if (bytes > 0) {
                     return true;
                 }
@@ -91,7 +108,16 @@ public class Application {
         return false;
     }
 
-    private static boolean isUrlDownloadable(String fileNameOnly) {
+    protected static String extractFileNameOnly(URI fileUri) throws UnsupportedEncodingException {
+        String decodedUrl = URLDecoder.decode(fileUri.toString(), "UTF-8");
+        String[] strings = decodedUrl.split("/");
+        if (strings.length > 0) {
+            return strings[strings.length - 1];
+        }
+        return "";
+    }
+
+    protected static boolean isUrlDownloadable(String fileNameOnly) {
         System.out.println("URL: " + fileNameOnly);
         String extension = getFileNameExtension(fileNameOnly).orElse(null);
         System.out.println("File ext: " + extension);
